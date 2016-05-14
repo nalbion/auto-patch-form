@@ -1,0 +1,21 @@
+<link rel="import" href="../polymer/polymer.html">
+<link rel="import" href="../iron-ajax/iron-request.html">
+<!--
+A form which does not require a submit button - it sends a PATCH automatically,
+which can be pooled and batched by a [Service Worker](http://www.html5rocks.com/en/tutorials/service-worker/introduction/).
+
+The form supports undo/redo and smart merging on the server of multiple requests, potentially submitted by different clients.
+
+<b>Note:</b> There's no point adding <code>method="patch"</code> as browsers will likely convert it to get or post.
+
+Example:
+
+    <form is="smart-form" action="//api.example.com/smart-form">
+      <paper-input label="First name" value="{{first_name}}"></paper-input>
+      <paper-input label="Last name" value="{{last_name}}"></paper-input>
+    </form>
+
+@demo demo/index.html
+@hero hero.svg
+-->
+<script src="smart-form.js"></script>

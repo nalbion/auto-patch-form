@@ -1,0 +1,30 @@
+{
+  "name": "smart-form",
+  "version": "0.0.1",
+  "authors": [
+    "Nicholas Albion <nalbion@yahoo.com>"
+  ],
+  "description": "A form which does not require a submit button - it sends a PATCH automatically, which can be pooled and batched by a Service Worker",
+  "keywords": [
+    "web-component",
+    "polymer",
+    "service worker",
+    "form"
+  ],
+  "main": "smart-form.html",
+  "license": "MIT",
+  "homepage": "https://github.com/nalbion/smart-form",
+  "ignore": [
+    "/.*",
+    "/test/"
+  ],
+  "dependencies": {
+    "polymer": "Polymer/polymer#^1.2.0",
+    "iron-ajax": "polymerelements/iron-ajax#~1.2.0"
+  },
+  "devDependencies": {
+    "iron-component-page": "PolymerElements/iron-component-page#^1.0.0",
+    "web-component-tester": "^4.0.0",
+    "paper-input": "~1.1.11"
+  }
+}

@@ -1,0 +1,133 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, minimum-scale=1.0, initial-scale=1.0, user-scalable=yes">
+
+    <script src="../../webcomponentsjs/webcomponents-lite.js"></script>
+    <script src="../../web-component-tester/browser.js"></script>
+
+    <link rel="import" href="../smart-form.html">
+    <link rel="import" href="../demo/my-custom-control.html">
+    <link rel="import" href="../../paper-input/paper-input.html">
+  </head>
+  <body>
+
+    <test-fixture id="json-form">
+      <template>
+        <form is="smart-form" action="//localhost:3000/api/user" get-when="ready" with-credentials>
+          <paper-input label="First name" json-path="$.user.first_name"></paper-input>
+          <paper-input label="Last name" json-path="$.user.last_name"></paper-input>
+          <my-custom-control label="Other" json-path="$.my.custom.control"></my-custom-control>
+        </form>
+      </template>
+    </test-fixture>
+    <test-fixture id="json-api-form">
+      <template>
+        <form is="smart-form" action="//localhost:3000/api/user" get-when="ready"
+              accept="application/vnd.api+json" with-credentials>
+          <paper-input label="First name" json-path="$.first_name"></paper-input>
+          <paper-input label="Last name" json-path="$.last_name"></paper-input>
+          <my-custom-control label="Other" json-path="$.my.custom.control"></my-custom-control>
+        </form>
+      </template>
+    </test-fixture>
+
+    <script>
+      suite('<smart-form>', function() {
+        var jsonHeaders = {'Content-Type': 'application/json'};
+        var jsonResponse = {
+          user: { first_name: 'Test', last_name: 'User' },
+          my: { custom: { control: 'test successful!' } }
+        };
+        var jsonApiHeaders = {'Content-Type': 'application/vnd.api+json'};
+        var jsonApiResponse = {
+          data: {
+            type: 'user',
+            id: '12345678',
+            attributes: {
+              first_name: 'Test',
+              last_name: 'User',
+              my: { custom: { control: 'test successful!' } }
+            }
+          }
+        };
+        var form, server, requests;
+
+        suite('JSON', function() {
+          setup(function() {
+            _setup('json-form');
+          });
+          teardown(function() {
+            server.restore();
+          });
+
+          test('get-when="ready" performs a GET request upon initialisation', function(done) {
+            assert.equal(form.action, 'http://localhost:3000/api/user');
+
+            server.respondWith('GET', form.action, function(xhr) {
+              requests.push({method: xhr.method, url: xhr.url});
+              if (xhr.requestHeaders.accept == 'application/vnd.api+json') {
+                xhr.respond(200, jsonApiHeaders, JSON.stringify(jsonApiResponse));
+              } else {
+                xhr.respond(200, jsonHeaders, JSON.stringify(jsonResponse));
+              }
+            });
+
+            form.addEventListener('smart-form-ready', function() {
+              assert.equal(requests.length, 1, 'should do a GET from `' + form.action + '`');
+              assert.equal(requests[0].method, 'GET');
+              assert.equal(requests[0].url, form.action);
+              done();
+            });
+          });
+
+          test('sets input field data upon initialisation', function(done) {
+            shouldSetInputFieldDataUponInitialisation(jsonHeaders, jsonResponse, done);
+          });
+        });
+
+        /** http://jsonapi.org/ */
+        suite('JSON API', function() {
+          setup(function() {
+            _setup('json-api-form');
+          });
+          teardown(function() {
+            server.restore();
+          });
+
+          test('sets input field data upon initialisation', function(done) {
+            shouldSetInputFieldDataUponInitialisation(jsonApiHeaders, jsonApiResponse, done);
+          });
+        });
+
+        function _setup(fixtureName) {
+          form = fixture(fixtureName);
+          form.first_name = '';
+          form.last_name = '';
+          form.last_name = '';
+
+          requests = [];
+          server = sinon.fakeServer.create();
+          server.autoRespond = true;
+        }
+
+        function shouldSetInputFieldDataUponInitialisation(headers, response, done) {
+          server.respondWith('GET', form.action, function(xhr) {
+            requests.push({method: xhr.method, url: xhr.url});
+            xhr.respond(200, headers, JSON.stringify(response));
+          });
+
+          form.addEventListener('smart-form-ready', function() {
+            form.async(function() {
+            assert.equal(Polymer.dom(form).querySelector('[label="First name"]').value, 'Test');
+            assert.equal(Polymer.dom(form).querySelector('[label="Last name"]').value, 'User');
+            assert.equal(Polymer.dom(form).querySelector('[label="Other"]').value, 'test successful!');
+            done();
+            }, 2000);
+          });
+        }
+      });
+    </script>
+  </body>
+</html>
