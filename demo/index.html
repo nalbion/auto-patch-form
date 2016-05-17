@@ -10,13 +10,13 @@
     <link rel="import" href="my-custom-control.html">
   </head>
   <body unresolved>
-    <p>An example of <code>&lt;auto-patch-form&gt;</code>:</p>
+    <p>An example of <code>&lt;form is="auto-patch-form"&gt;</code> (won't work until back-end is implemented)</p>
 
     <template is="dom-bind" id="app">
       <form is="auto-patch-form" action="//api.example.com/auto-patch-form" get-when="ready">
         <paper-input label="First name" json-path="$.user.first_name"></paper-input>
-        <paper-input label="Last name" value="$.user.last_name"></paper-input>
-        <my-custom-control label="Other" value="$.other"></my-custom-control>
+        <paper-input label="Last name" json-path="$.user.last_name"></paper-input>
+        <my-custom-control label="Other" json-path="$.other"></my-custom-control>
       </form>
     </template>
 
