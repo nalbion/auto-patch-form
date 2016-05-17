@@ -1,0 +1,34 @@
+<link rel="import" href="../../polymer/polymer.html">
+<dom-module id="my-custom-control">
+<template>
+  <style>
+    :host {
+      display: block;
+    }
+  </style>
+  <div>
+    <paper-input label="{{label}}" value="{{value}}"></paper-input>
+    <label>Native input</label>
+    <input type="text" value$="{{native}}">
+  </div>
+</template>
+<script>
+Polymer({
+  is: 'my-custom-control',
+
+  properties: {
+    label: {
+      type: String
+    },
+    value: {
+      type: String,
+      notify: true
+    },
+    native: {
+      type: String,
+      notify: true
+    }
+  }
+});
+</script>
+</dom-module>
