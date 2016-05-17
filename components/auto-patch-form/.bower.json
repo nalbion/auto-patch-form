@@ -1,0 +1,41 @@
+{
+  "name": "auto-patch-form",
+  "authors": [
+    "Nicholas Albion <nalbion@yahoo.com>"
+  ],
+  "description": "A form decorator which removes the need for a submit button - it sends pooled PATCH requests automatically",
+  "keywords": [
+    "web-component",
+    "polymer",
+    "service worker",
+    "form"
+  ],
+  "main": "auto-patch-form.html",
+  "license": "MIT",
+  "homepage": "https://github.com/nalbion/auto-patch-form",
+  "ignore": [
+    "/.*",
+    "/test/"
+  ],
+  "dependencies": {
+    "polymer": "Polymer/polymer#^1.2.0",
+    "iron-ajax": "polymerelements/iron-ajax#~1.2.0",
+    "platinum-sw": "PolymerElements/platinum-sw#~1.3.0"
+  },
+  "devDependencies": {
+    "iron-component-page": "PolymerElements/iron-component-page#^1.0.0",
+    "web-component-tester": "^4.0.0",
+    "paper-input": "~1.1.11",
+    "iron-test-helpers": "PolymerElements/iron-test-helpers#~1.2.5"
+  },
+  "_release": "497dec1003",
+  "_resolution": {
+    "type": "branch",
+    "branch": "master",
+    "commit": "497dec1003045d2ae848664e9039f72b317a086e"
+  },
+  "_source": "git@github.com:nalbion/auto-patch-form.git",
+  "_target": "master",
+  "_originalSource": "git@github.com:nalbion/auto-patch-form",
+  "_direct": true
+}

@@ -1,0 +1,31 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, minimum-scale=1.0, initial-scale=1.0, user-scalable=yes">
+    <title>auto-patch-form Demo</title>
+    <script src="../../webcomponentsjs/webcomponents-lite.min.js"></script>
+    <link rel="import" href="../../paper-input/paper-input.html">
+    <link rel="import" href="../auto-patch-form.html">
+    <link rel="import" href="my-custom-control.html">
+  </head>
+  <body unresolved>
+    <p>An example of <code>&lt;auto-patch-form&gt;</code>:</p>
+
+    <template is="dom-bind" id="app">
+      <form is="auto-patch-form" action="//api.example.com/auto-patch-form" get-when="ready">
+        <paper-input label="First name" json-path="$.user.first_name"></paper-input>
+        <paper-input label="Last name" value="$.user.last_name"></paper-input>
+        <my-custom-control label="Other" value="$.other"></my-custom-control>
+      </form>
+    </template>
+
+    <script>
+      var app = document.querySelector('#app');
+
+      window.addEventListener('WebComponentsReady', function() {
+        document.querySelector('body').removeAttribute('unresolved');
+      });
+    </script>
+  </body>
+</html>
