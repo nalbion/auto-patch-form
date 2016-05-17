@@ -7,15 +7,27 @@
     <script src="../../webcomponentsjs/webcomponents-lite.js"></script>
     <script src="../../web-component-tester/browser.js"></script>
 
-    <link rel="import" href="../smart-form.html">
+    <link rel="import" href="../auto-patch-form.html">
     <link rel="import" href="../demo/my-custom-control.html">
     <link rel="import" href="../../paper-input/paper-input.html">
+    <link rel="import" href="../../platinum-sw/platinum-sw-register.html">
+    <link rel="import" href="../../platinum-sw/platinum-sw-import-script.html">
+    <link rel="import" href="../../platinum-sw/platinum-sw-fetch.html">
   </head>
   <body>
 
     <test-fixture id="json-form">
       <template>
-        <form is="smart-form" action="//localhost:3000/api/user" get-when="ready" with-credentials>
+        <form is="auto-patch-form" action="//localhost:3000/api/user" get-when="ready" debounce-ms="150" with-credentials>
+          <paper-input label="First name" json-path="$.user.first_name"></paper-input>
+          <paper-input label="Last name" json-path="$.user.last_name"></paper-input>
+          <my-custom-control label="Other" json-path="$.my.custom.control"></my-custom-control>
+        </form>
+      </template>
+    </test-fixture>
+    <test-fixture id="json-form-local-storage">
+      <template>
+        <form is="auto-patch-form" action="//localhost:3000/api/user" get-when="ready" use-local-storage="false" with-credentials>
           <paper-input label="First name" json-path="$.user.first_name"></paper-input>
           <paper-input label="Last name" json-path="$.user.last_name"></paper-input>
           <my-custom-control label="Other" json-path="$.my.custom.control"></my-custom-control>
@@ -24,8 +36,18 @@
     </test-fixture>
     <test-fixture id="json-api-form">
       <template>
-        <form is="smart-form" action="//localhost:3000/api/user" get-when="ready"
-              accept="application/vnd.api+json" with-credentials>
+        <form is="auto-patch-form" action="//localhost:3000/api/user" get-when="ready"
+              content-type="application/vnd.api+json" with-credentials>
+          <paper-input label="First name" json-path="$.first_name"></paper-input>
+          <paper-input label="Last name" json-path="$.last_name"></paper-input>
+          <my-custom-control label="Other" json-path="$.my.custom.control"></my-custom-control>
+        </form>
+      </template>
+    </test-fixture>
+    <test-fixture id="json-api-form-local-storage">
+      <template>
+        <form is="auto-patch-form" action="//localhost:3000/api/user" get-when="ready" use-local-storage
+              content-type="application/vnd.api+json" with-credentials>
           <paper-input label="First name" json-path="$.first_name"></paper-input>
           <paper-input label="Last name" json-path="$.last_name"></paper-input>
           <my-custom-control label="Other" json-path="$.my.custom.control"></my-custom-control>
@@ -33,8 +55,13 @@
       </template>
     </test-fixture>
 
+    <platinum-sw-register auto-register>
+      <platinum-sw-import-script href="../auto-patch-form-fetch-handler.js"></platinum-sw-import-script>
+      <platinum-sw-fetch handler="smartFormFetchHandler" origin="http://localhost:3000" path="/api/user"></platinum-sw-fetch>
+    </platinum-sw-register>
+
     <script>
-      suite('<smart-form>', function() {
+      suite('<form is="auto-patch-form">', function() {
         var jsonHeaders = {'Content-Type': 'application/json'};
         var jsonResponse = {
           user: { first_name: 'Test', last_name: 'User' },
@@ -54,15 +81,57 @@
         };
         var form, server, requests;
 
+        suite('Auto PATCH', function() {
+          test('Controls with `json-path` attributes automatically trigger a debounced PATCH request', function(done) {
+            _setup('json-form');
+            server.respondWith('GET', form.action, function(xhr) {
+              requests.push({method: xhr.method, url: xhr.url});
+              xhr.respond(200, jsonHeaders, JSON.stringify(jsonResponse));
+            });
+
+            server.respondWith('PATCH', form.action, function(xhr) {
+              console.info(xhr);
+              requests.push({method: xhr.method, url: xhr.url, body: xhr.requestBody});
+              xhr.respond(200, jsonHeaders, JSON.stringify({}));
+            });
+
+            form.async(function() {
+              _changeElementValueWithEvent(Polymer.dom(form).querySelector('[label="First name"]'), 'Auto');
+              form.async(function() {
+                _changeElementValueWithEvent(Polymer.dom(form).querySelector('[label="Last name"]'), 'Patch');
+
+                //form.addEventListener('auto-patch-form-patch', function() {
+                form.async(function() {
+                  assert.equal(requests.length, 2, 'should have sent 2 requests - one GET and one PATCH');
+                  assert.equal(requests[1].method, 'PATCH');
+                  var mergeData = JSON.parse(requests[1].body);
+                  assert.equal(mergeData['$.user.first_name'].value, 'Auto');
+                  assert.equal(mergeData['$.user.last_name'].value, 'Patch');
+                  done();
+                }, 200);
+              }, 100);
+            }, 100);
+          });
+        });
+
+//        suite('Service Worker', function() {
+//          test('PATCH requests are intercepted by the service worker', function(done) {
+//            done(new Error('pending'));
+//          });
+//        });
+
         suite('JSON', function() {
           setup(function() {
-            _setup('json-form');
+//            _setup('json-form');
           });
           teardown(function() {
-            server.restore();
+            if (server) {
+              server.restore();
+            }
           });
 
           test('get-when="ready" performs a GET request upon initialisation', function(done) {
+            _setup('json-form');
             assert.equal(form.action, 'http://localhost:3000/api/user');
 
             server.respondWith('GET', form.action, function(xhr) {
@@ -74,7 +143,7 @@
               }
             });
 
-            form.addEventListener('smart-form-ready', function() {
+            form.addEventListener('auto-patch-form-ready', function() {
               assert.equal(requests.length, 1, 'should do a GET from `' + form.action + '`');
               assert.equal(requests[0].method, 'GET');
               assert.equal(requests[0].url, form.action);
@@ -82,22 +151,40 @@
             });
           });
 
-          test('sets input field data upon initialisation', function(done) {
-            shouldSetInputFieldDataUponInitialisation(jsonHeaders, jsonResponse, done);
+          test('handles network failure and with no stored data', function(done) {
+            shouldHandleNoLocalDataOrNetwork(false, done);
           });
+
+          test('loads data from IndexedDB', function(done) {
+            shouldLoadLocalData(true, true, done);
+          });
+
+          test('loads data from LocalStorage', function(done) {
+            shouldLoadLocalData(true, false, done);
+          });
+
+//          test('loads remote data upon initialisation', function(done) {
+//            _setup('json-form');
+//            shouldLoadRemoteDataUponInitialisation(jsonHeaders, jsonResponse, done);
+//          });
         });
 
         /** http://jsonapi.org/ */
         suite('JSON API', function() {
           setup(function() {
-            _setup('json-api-form');
+//            _setup('json-api-form');
           });
           teardown(function() {
             server.restore();
           });
 
-          test('sets input field data upon initialisation', function(done) {
-            shouldSetInputFieldDataUponInitialisation(jsonApiHeaders, jsonApiResponse, done);
+          test('loads data from IndexedDB', function(done) {
+            shouldLoadLocalData(false, true, done);
+          });
+
+          test('loads remote data upon initialisation', function(done) {
+            _setup('json-api-form');
+            shouldLoadRemoteDataUponInitialisation(jsonApiHeaders, jsonApiResponse, done);
           });
         });
 
@@ -112,19 +199,140 @@
           server.autoRespond = true;
         }
 
-        function shouldSetInputFieldDataUponInitialisation(headers, response, done) {
+        function _prepareLocalData(forJsonApi, useIndexDb) {
+          var yesterday = new Date().getTime() - 24 * 3600 * 1000;
+          var earlierToday = new Date().getTime() - 1 * 3600 * 1000;
+          return [
+            {
+              path: forJsonApi ? '$.first_name' : '$.user.first_name',
+              value: 'Test',
+              state: 3,   // can't use boolean as a key
+              time: yesterday
+            }, {
+              path: forJsonApi ? '$.last_name' : '$.user.last_name',
+              value: useIndexDb ? 'IndexedDB' : 'LocalStorage',
+              state: 3,
+              time: yesterday
+            }, {
+              path: '$.my.custom.control',
+              value: useIndexDb ? 'Custom data for IndexedDB' : 'Custom data for LocalStorage',
+              state: 0,
+              time: earlierToday
+            }
+          ];
+        }
+
+        function _changeElementValueWithEvent(element, value) {
+          element.value = value;
+          Polymer.Base.fire('change', {}, {
+            bubbles: false,
+            node: element
+          });
+        }
+
+        function _storeTestData(useIndexedDb, testData, clear, done) {
+          var tableName = 'http://localhost:3000/api/user';
+
+          if (useIndexedDb !== true) {
+            // local storage
+            var key = 'auto-patch-form.' + tableName;
+            var formRecords = localStorage.getItem(key);
+            if (!formRecords || clear) {
+              formRecords = [];
+              localStorage.setItem(key, '[]');
+            } else {
+              formRecords = JSON.parse(formRecords);
+            }
+
+            if (testData && testData.length > 0) {
+              for (var i in testData) {
+                formRecords.push(testData[i]);
+              }
+            }
+            localStorage.setItem(key, JSON.stringify(formRecords));
+
+            if (useIndexedDb === false ) {
+              done();
+            }
+          }
+          if (useIndexedDb !== false) {
+            var open /*: IDBOpenDBRequest*/ = indexedDB.open('auto-patch-form');
+            open.onerror = done;
+            open.onupgradeneeded = function() {
+              var db = open.result;
+              console.info('Create an objectStore for this database');
+              var store = db.createObjectStore(tableName, { autoIncrement : true });
+              store.createIndex('state', 'state', { unique: false });
+            };
+            open.onsuccess = function () {
+              var db = open.result;
+//              if (!db.objectStoreNames.contains(tableName)) {
+//                db.createObjectStore(tableName, { autoIncrement : true });
+//              }
+              console.info('opening IndexedDB:', tableName);
+              var tx = db.transaction(tableName, 'readwrite');
+              var store = tx.objectStore(tableName);
+              if (clear) { store.clear(); }
+              if (testData && testData.length > 0) {
+                for (var i in testData) {
+                  store.add(testData[i]);
+                }
+              }
+              done();
+            };
+          }
+        }
+
+        function shouldHandleNoLocalDataOrNetwork(forJsonApi, done) {
+          _storeTestData('both', null, true, function() {
+            _setup(forJsonApi ? 'json-api-form' : 'json-form');
+
+            form.addEventListener('auto-patch-form-ready', function() {
+              form.async(function() {
+                assert.equal(Polymer.dom(form).querySelector('[label="First name"]').value, '');
+                assert.equal(Polymer.dom(form).querySelector('[label="Last name"]').value, '');
+                assert.equal(Polymer.dom(form).querySelector('[label="Other"]').value, '');
+                done();
+              });
+            });
+          });
+        }
+
+        function shouldLoadLocalData(forJsonApi, useIndexedDB, done) {
+          var testData = _prepareLocalData(forJsonApi, useIndexedDB);
+          _storeTestData(useIndexedDB, testData, true, function() {
+            var fixtureId = forJsonApi ? 'json-api-form' : 'json-form';
+            if (!useIndexedDB) {
+              fixtureId += '-local-storage';
+            }
+            _setup(fixtureId);
+
+            form.addEventListener('auto-patch-form-ready', function() {
+              form.async(function() {
+                assert.equal(Polymer.dom(form).querySelector('[label="First name"]').value, 'Test');
+                assert.equal(Polymer.dom(form).querySelector('[label="Last name"]').value, useIndexedDB ? 'IndexedDB' : 'LocalStorage');
+                assert.equal(Polymer.dom(form).querySelector('[label="Other"]').value, useIndexedDB ? 'Custom data for IndexedDB' : 'Custom data for LocalStorage');
+                done();
+              });
+            });
+          });
+        }
+
+        function shouldLoadRemoteDataUponInitialisation(headers, response, done) {
           server.respondWith('GET', form.action, function(xhr) {
             requests.push({method: xhr.method, url: xhr.url});
             xhr.respond(200, headers, JSON.stringify(response));
           });
 
-          form.addEventListener('smart-form-ready', function() {
-            form.async(function() {
-            assert.equal(Polymer.dom(form).querySelector('[label="First name"]').value, 'Test');
-            assert.equal(Polymer.dom(form).querySelector('[label="Last name"]').value, 'User');
-            assert.equal(Polymer.dom(form).querySelector('[label="Other"]').value, 'test successful!');
-            done();
-            }, 2000);
+          _storeTestData('both', null, true, function() {
+            form.addEventListener('auto-patch-form-ready', function () {
+              form.async(function () {
+                assert.equal(Polymer.dom(form).querySelector('[label="First name"]').value, 'Test');
+                assert.equal(Polymer.dom(form).querySelector('[label="Last name"]').value, 'User');
+                assert.equal(Polymer.dom(form).querySelector('[label="Other"]').value, 'test successful!');
+                done();
+              });
+            });
           });
         }
       });
