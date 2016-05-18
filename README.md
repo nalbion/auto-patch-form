@@ -10,7 +10,7 @@ When the response is received it updates the `value` property of the elements wi
 When the user updates the form a `PATCH` is sent to the `action` URL for each field which has been updated.
 The PATCH requests are debounced so that they can be pooled if necessary.
 
-    <form is="auto-patch-form" action="//api.example.com/auto-patch-form" get-when="ready">
+    <form is="auto-patch-form" get-when="ready" action="//api.example.com/auto-patch-form">
       <paper-input label="First name" json-path="$.user.first_name"></paper-input>
       <paper-input label="Last name" json-path="$.user.last_name"></paper-input>
     </form>
