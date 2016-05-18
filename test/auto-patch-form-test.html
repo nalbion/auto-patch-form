@@ -18,7 +18,8 @@
 
     <test-fixture id="json-form">
       <template>
-        <form is="auto-patch-form" action="//localhost:3000/api/user" get-when="ready" debounce-ms="150" with-credentials>
+        <form is="auto-patch-form" get-when="ready" debounce-ms="150" with-credentials
+              action="//localhost:3000/api/user" >
           <paper-input label="First name" json-path="$.user.first_name"></paper-input>
           <paper-input label="Last name" json-path="$.user.last_name"></paper-input>
           <my-custom-control label="Other" json-path="$.my.custom.control"></my-custom-control>
@@ -27,7 +28,8 @@
     </test-fixture>
     <test-fixture id="json-form-local-storage">
       <template>
-        <form is="auto-patch-form" action="//localhost:3000/api/user" get-when="ready" use-local-storage="false" with-credentials>
+        <form is="auto-patch-form" get-when="ready" use-local-storage="false" with-credentials
+              action="//localhost:3000/api/user">
           <paper-input label="First name" json-path="$.user.first_name"></paper-input>
           <paper-input label="Last name" json-path="$.user.last_name"></paper-input>
           <my-custom-control label="Other" json-path="$.my.custom.control"></my-custom-control>
@@ -36,8 +38,9 @@
     </test-fixture>
     <test-fixture id="json-api-form">
       <template>
-        <form is="auto-patch-form" action="//localhost:3000/api/user" get-when="ready"
-              content-type="application/vnd.api+json" with-credentials>
+        <form is="auto-patch-form" get-when="ready"
+              content-type="application/vnd.api+json" with-credentials
+              action="//localhost:3000/api/user">
           <paper-input label="First name" json-path="$.first_name"></paper-input>
           <paper-input label="Last name" json-path="$.last_name"></paper-input>
           <my-custom-control label="Other" json-path="$.my.custom.control"></my-custom-control>
@@ -46,8 +49,9 @@
     </test-fixture>
     <test-fixture id="json-api-form-local-storage">
       <template>
-        <form is="auto-patch-form" action="//localhost:3000/api/user" get-when="ready" use-local-storage
-              content-type="application/vnd.api+json" with-credentials>
+        <form is="auto-patch-form" get-when="ready" use-local-storage
+              content-type="application/vnd.api+json" with-credentials
+              action="//localhost:3000/api/user" >
           <paper-input label="First name" json-path="$.first_name"></paper-input>
           <paper-input label="Last name" json-path="$.last_name"></paper-input>
           <my-custom-control label="Other" json-path="$.my.custom.control"></my-custom-control>
@@ -163,10 +167,10 @@
             shouldLoadLocalData(true, false, done);
           });
 
-//          test('loads remote data upon initialisation', function(done) {
-//            _setup('json-form');
-//            shouldLoadRemoteDataUponInitialisation(jsonHeaders, jsonResponse, done);
-//          });
+          test('loads remote data upon initialisation', function(done) {
+            _setup('json-form');
+            shouldLoadRemoteDataUponInitialisation(jsonHeaders, jsonResponse, done);
+          });
         });
 
         /** http://jsonapi.org/ */

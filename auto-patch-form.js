@@ -28,6 +28,19 @@ Polymer({
             // value: 'application/json'
         },
 
+        /** (iron-form provides this)
+         * HTTP request headers to send
+         *
+         * Note: setting a `Content-Type` header here will override the value
+         * specified by the `contentType` property of this element.
+         * /
+        headers: {
+            type: Object,
+            value: function() {
+                return {};
+            }
+        },*/
+
         /**
          * Whether or not to send credentials on the request. Default is false.
          * See [XMLHttpRequest.withCredentials](https://developer.mozilla.org/en-US/docs/Web/API/XMLHttpRequest/withCredentials)
@@ -71,6 +84,26 @@ Polymer({
             }
         }
     },
+
+    /**
+     * Fired once the form has loaded its initial local and/or remote data
+     * @event auto-patch-form-read
+     */
+    /**
+     * Fired if the form cannot be submitted because it's invalid.
+     * @event iron-form-invalid
+     */
+    /**
+     * Fired after the form is submitted.
+     * @event iron-form-submit
+     */
+    /** Fired after the form is submitted and a response is received.
+     * @event iron-form-response
+     */
+    /**
+     * Fired after the form is submitted and an error is received.
+     * @event iron-form-error
+     */
 
     // created: function() {
     //     console.info('auto-patch-form created');
@@ -139,28 +172,65 @@ Polymer({
     //     // console.info('auto-patch-form detached');
     // },
 
-    /** @private */
+    listeners: {
+        // doesn't work, need to listen to each individually: 'change': '_onChange'
+        'iron-form-element-unregister': '_unregisterElement'
+    },
+
+    /** called once by `ready()` */
     _locateControls: function() {
-        var controls = this.querySelectorAll('[json-path]'),
-            boundOnChange = this._onChange.bind(this);
+        var elements = this.querySelectorAll('[json-path]');
         this.controls = {};
-        for (var i = controls.length; i-- > 0; ) {
-            var control = controls[i],
-              path = control.getAttribute('json-path');
-            this.controls[path] = control; //{control: control, path: path.split('.')};
-            //this.listen(control, 'change', '_onChange');
-            control.addEventListener('change', boundOnChange);        // or value-changed?
+        for (var i = elements.length; i-- > 0; ) {
+            var element = elements[i];
+            this._registerElement(element);
+        }
+        // now that we've done the initial query, listen for new elements
+        this.listen(this, 'iron-form-element-register', '_registerElement');
+    },
+
+    _registerElement: function(e) {
+        e = e.target || e;      // e is now the element
+        e._parentForm = this;
+        var path = e.getAttribute('json-path');
+        if (path && !this.controls[path]) {
+            this.controls[path] = e; //{control: control, path: path.split('.')};
+            this.listen(e, 'change', '_onChange');        // or value-changed?
+        }
+    },
+
+    _unregisterElement: function(e) {
+        var target = e.detail.target;
+        if (target) {
+            var path = target.getAttribute('json-path');
+            if (this.controls[path]) {
+                delete this.controls[path];
+                this.unlisten(target, 'change', '_onChange');
+            }
         }
     },
 
     _onChange: function(e) {
-        this.patchPending = true;
-        var path = e.target.getAttribute('json-path');
+        var el = e.target;
+        if (/*!this.noValidate &&*/ !this.validate(el)) {
+            // In order to trigger the native browser invalid-form UI, we need
+            // to do perform a fake form submit.
+            //if (!this.disableNativeValidationUi) {
+                this._doFakeSubmitForValidation();
+            //}
+            this.fire('iron-form-invalid', el);
+            return;
+        }
+
+        var path = el.getAttribute('json-path'),
+            value = ((el.type == 'checkbox' || el.type == 'radio' ||
+                    el.getAttribute('role') == 'checkbox' || el.getAttribute('role') == 'radio')) ? el.checked : el.value;
+            // value = el.value; // serialize();
 
         this._activityLog.push({
             time: new Date().getTime(),
             path: path,
-            value: e.target.value,
+            value: value,
             state: 0    // 0: PENDING, 1: SUPERSEDED, 2: SUBMITTED, 3: ACCEPTED
         });
         // clean up the _activityLog so that it doesn't get too large
@@ -185,50 +255,79 @@ Polymer({
             }
         }
 
-        var self = this;
-        this.debounce('autoPatch', function() {
-            var body = {};
-            // starting with the oldest records, and sending only PENDING changes,
-            // over-write any other PENDING changes for the same path
-            var submittedRecords = [];
-            for (var i = 0; i < len; i++ ) {
-                var activity = this._activityLog[i];
-                if (activity.state == 0) {
-                    var superseded = body[activity.path];
-                    if (superseded) {
-                        submittedRecords.splice( submittedRecords.indexOf(superseded), 1 );
-                        superseded.state = 1;           // SUPERSEDED
-                    }
-                    activity.state = 2;                 // SUBMITTED
-                    submittedRecords.push(activity);
-                    body[activity.path] = {value: activity.value, time: activity.time}
-                }
-            }
-            if (this.contentType == 'application/vnd.api+json') {
-                body = {
-                    data: {
-                        type: self.jsonApiType || 'merge',
-                        id: self.jsonApiId || 'self',
-                        attributes: body
-                    }
-                };
-            }
+        if (this.validate()) {
+            this.patchPending = true;
+            this.debounce('autoPatch', this._autoPatch /*.bind(this)*/, this.debounceMs);
+        }
+    },
 
-            self._send('PATCH', body).then( function(response) {
-                console.info('PATCH response:', response.status, response.response);
-                // update the state of each _activityLog item to 3: ACCEPTED
-                var i = submittedRecords.length;
-                while (i-- != 0) {
-                    submittedRecords[i].state = 3;
+    /**
+     * @param {HTMLElement=} el - if not provided, validate the whole form
+     */
+    validate: function(el) {
+        var valid = true;
+        if (!el) {
+            for (var path in this.controls) {
+                valid &= this.validate(this.controls[path]);
+            }
+        } else {
+            if (el.required && !el.disabled) {
+                if (el.validate) {
+                    valid &= el.validate();
                 }
-                self.patchPending = false;
-            }, function(err) {
-                var i = submittedRecords.length;
-                while (i-- != 0) {
-                    submittedRecords[i].state = 0;      // reset to PENDING
+            } else if (el.willValidate && el.checkValidity) {
+                valid &= el.checkValidity();
+            }
+        }
+        return valid;
+    },
+
+    _autoPatch: function() {
+        var body = {},
+            len = this._activityLog.length,
+            self = this;
+        // starting with the oldest records, and sending only PENDING changes,
+        // over-write any other PENDING changes for the same path
+        var submittedRecords = [];
+        for (var i = 0; i < len; i++ ) {
+            var activity = this._activityLog[i];
+            if (activity.state == 0) {
+                var superseded = body[activity.path];
+                if (superseded) {
+                    submittedRecords.splice( submittedRecords.indexOf(superseded), 1 );
+                    superseded.state = 1;           // SUPERSEDED
                 }
-            });
-        }, this.debounceMs);
+                activity.state = 2;                 // SUBMITTED
+                submittedRecords.push(activity);
+                body[activity.path] = {value: activity.value, time: activity.time}
+            }
+        }
+        if (this.contentType == 'application/vnd.api+json') {
+            body = {
+                data: {
+                    type: self.jsonApiType || 'merge',
+                    id: self.jsonApiId || 'self',
+                    attributes: body
+                }
+            };
+        }
+
+        self._send('PATCH', body).then( function(response) {
+            //console.info('PATCH response:', response.status, response.response);
+            // update the state of each _activityLog item to 3: ACCEPTED
+            var i = submittedRecords.length;
+            while (i-- != 0) {
+                submittedRecords[i].state = 3;
+            }
+            self.patchPending = false;
+            self.fire('iron-form-response', response);
+        }, function(err) {
+            self.fire('iron-form-error', err);
+            var i = submittedRecords.length;
+            while (i-- != 0) {
+                submittedRecords[i].state = 0;      // reset to PENDING
+            }
+        });
     },
 
     /**
@@ -251,7 +350,7 @@ Polymer({
 
             // merge the remote data into our model, select the paths that our controls are interested in
             // self.extend(model, response);
-            var now = new Date().getTime();
+            //var now = new Date().getTime();
             for (var path in self.controls) {
                 if (self.controls.hasOwnProperty(path)) {
                     var //control = self.controls[path],
@@ -261,7 +360,6 @@ Polymer({
                     for (var i = 1; i < names.length; i++) {
                         node = node[names[i]];
                     }
-
                     // over-write anything that we had loaded from storage which has already been submitted
                     model[path] = {
                         value: node
@@ -276,7 +374,7 @@ Polymer({
 
     /*
      * @param {String} method - 'GET' or 'PATCH'
-     * @param {Object=} body
+     * @param {Object=} body - only required for PATCH
      * @return {Promise}
      */
     _send: function(method, body) {
@@ -295,7 +393,11 @@ Polymer({
             options.headers['content-type'] = contentType;
         }
 
-        return request.send(options);
+        var p = request.send(options);
+        if (body) {
+            this.fire('iron-form-submit', body);
+        }
+        return p;
     },
 
     /**
@@ -317,7 +419,6 @@ Polymer({
                 db.onerror = function(event) {
                     callback(event);
                 };
-console.info('upgrading indexedDB, creating table:', self.action);
                 // Create an objectStore for this database
                 var store = db.createObjectStore(self.action, { autoIncrement : true });
 
@@ -360,5 +461,17 @@ console.info('upgrading indexedDB, creating table:', self.action);
             }
             callback();
         }
+    },
+    
+    // borrowed directly from iron-form
+    _doFakeSubmitForValidation: function() {
+        var fakeSubmit = document.createElement('input');
+        fakeSubmit.setAttribute('type', 'submit');
+        fakeSubmit.style.display = 'none';
+        this.appendChild(fakeSubmit);
+
+        fakeSubmit.click();
+
+        this.removeChild(fakeSubmit);
     }
 });
