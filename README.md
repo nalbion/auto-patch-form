@@ -1,6 +1,7 @@
 # auto-patch-form
 
-A form decorator which removes the need for a submit button - it sends pooled PATCH requests automatically.
+A form decorator similar to [iron-form] which removes the need for a submit button - it sends pooled PATCH requests 
+automatically as individual controls are updated.
 
 <b>Note:</b> There's no point adding `method="patch"` as browsers will likely convert it to get or post.
 
@@ -61,3 +62,5 @@ To allow the back-end to manage syncing of PATCH requests from multiple clients,
 
 The JSON API PATCH request has the equivalent content in the `attributes` field and echos the `type` and `id` of the GET
 request, or defaults to `{ "type": "merge", "id": "self", ... }` if no GET request was issued.
+
+[iron-form]: [https://elements.polymer-project.org/elements/iron-form]
